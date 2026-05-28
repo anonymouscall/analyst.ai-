@@ -1,0 +1,53 @@
+# ── System Files & Logs ──
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Dependencies ──
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# ── Production Build output ──
+dist/
+dist-ssr/
+out/
+build/
+
+# ── Local Credentials & Configuration (NEVER commit these) ──
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.sample
+*.env
+
+# ── Databases & Configurations ──
+mcp_server/*.sqlite
+mcp_server/*.db
+mcp_server/connection_config.json
+mcp_server/uploaded_database.sqlite
+mcp_server/database.sqlite
+temp/
+*.db
+*.sqlite
+
+# ── Editor Configuration & Diagnostics ──
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.eslintcache
+.stylelintcache
+.prettiercache
