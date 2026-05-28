@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.resolve(__dirname, '../mcp_server/database.sqlite');
+const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '../mcp_server/database.sqlite');
 
 let db = null;
 
