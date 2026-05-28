@@ -1,49 +1,51 @@
-# Analyst.AI — Enterprise Natural Language SQL Analytics Engine
+# B.Tech CSE Capstone Project: Analyst.AI
+### Developed by: Vaibhav Mishra (Final-Year B.Tech, Computer Science & Engineering)
 
-Analyst.AI is a premium, high-fidelity data intelligence and relational analytics platform. It compiles standard natural language English prompts into compiler-validated SQLite statements using schema-semantic context parsing, securely executes them within isolated sandboxes, and renders interactive statistical charts and dynamic dataset tables.
+Analyst.AI is a full-stack database intelligence platform designed to securely translate natural language English prompts into compiler-validated SQLite queries, execute them in an isolated sandbox, and present the results in real-time charts and data tables. 
 
-Built as a high-end full-stack demonstration for major B.Tech project portfolios, the platform features dynamic, database-backed One-Time Password (OTP) authentication, session-level route guards, interactive offline query catalogs, and a reactive 3D database schema constellation engine.
+This repository houses the final-year B.Tech Major Project, demonstrating my implementations of:
+* Relational database schemas and dynamic SQL session controls.
+* Microservices architecture (using a hybrid SMTP/verification proxy).
+* Interactive 3D database schema visualization using Three.js and React Three Fiber (R3F).
+* Sandboxed execution environments using the Model Context Protocol (MCP).
 
 ---
 
-## 🌟 Key Features
+## 🚀 Key Feature Implementations
 
-* **English-to-SQL Compiler**: Translates complex plain English prompts into optimized, syntactically verified SQLite SELECT statements using schema vectors.
-* **Direct SMTP Verification Engine**: Integrated Nodemailer automation that generates secure 6-digit verification codes and dispatches beautifully designed HTML verification emails directly to client inboxes.
-* **Decoupled Microservice OTP Handshake**: Built-in hybrid proxy routing. If configured, it delegates authentication tasks directly to an external `sauravhathi/otp-service` microservice, enabling modern decoupled systems presentations.
-* **Persistent SQLite Session Management**: Active user logins, expirations (24-hour TTL), and verification codes (5-minute TTL) are persistently verified against SQLite database tables with strict non-blocking promise-wrapped pools.
-* **Offline Query History Catalog**: Preserves natural language inputs, SQL codes, AI analytical explanations, chart configurations, and retrieved raw dataset rows persistently. Users can collapse, view, and interact with visual charts offline even if the main database is disconnected.
-* **3D Data Constellation Explorer**: Implements an interactive Three.js and `@react-three/fiber` canvas visually rendering relational database structures as a kinetic 3D node network.
-* **Corporate Admin Console**: Comprehensive control panel displaying real-time execution audit logs, query compile latencies, RAM cache efficiency statistics, and a registry table of registered user profiles.
+* **Natural Language SQL Compiler**: Integrates a RAG-based database schema parser that extracts table metadata and column types, compiles the prompt into an optimized SQLite SELECT statement, and handles runtime LLM fallbacks seamlessly.
+* **Direct SMTP Verification Mailer**: A native `nodemailer` implementation. When a user logs in, the backend dynamically generates a secure 6-digit OTP code, stores it in SQLite, and sends a styled verification email to the user's inbox.
+* **Decoupled Microservice Proxy**: Designed a hybrid API architecture. The backend checks your environment variables; if `OTP_SERVICE_URL` is set, it proxies OTP generations to an external `sauravhathi/otp-service` microservice, demonstrating decoupled RESTful system design.
+* **Persistent Session Store & History**: Multi-user session mappings and user query logs are saved in a persistent SQLite database. The query history table caches previous compiled charts (Recharts) and raw data results, enabling users to view their charts offline even if the database is disconnected or deleted.
+* **3D Schema Constellation**: An interactive Three.js node visualizer. It reads the database dictionary dynamically and renders your database tables as physically connected 3D nodes using `@react-three/fiber` and `@react-three/drei`.
+* **Administrative Audit Console**: A secure control dashboard displaying average query execution latencies, RAM cache efficiency, execution logs, and a registry table of registered user emails.
 
 ---
 
 ## 🏗️ System Architecture
 
-Analyst.AI adopts a decoupled, secure asynchronous monorepo layout:
-
 ```
                       ┌──────────────────────────────┐
-                      │    Vite / React Frontend     │
+                      │    React 19 / Vite Client    │
                       │  - Three.js Node Constell    │
-                      │  - Recharts Visualizations   │
+                      │  - Recharts Dashboard Views  │
                       └──────────────┬───────────────┘
                                      │
-                        Secure API Handshakes (REST)
+                             REST API (HTTPS)
                                      │
                                      ▼
                       ┌──────────────────────────────┐
-                      │     Express API Backend      │
-                      │  - Route Guards Middleware   │
-                      │  - Nodemailer SMTP Dispatch  │
+                      │    Express API Orchestrator  │
+                      │  - Session Token Middleware  │
+                      │  - Nodemailer SMTP Mailer    │
                       └──────────────┬───────────────┘
                                      │
                     ┌────────────────┴────────────────┐
                     ▼                                 ▼
     ┌──────────────────────────────┐  ┌──────────────────────────────┐
     │     Persistent SQLite DB     │  │    MCP standard-I/O Server   │
-    │  - User Registry & Sessions  │  │  - Isolated SQL Compiler    │
-    │  - Persistent Query History  │  │  - Zero Direct DB Exposure   │
+    │  - Users, Sessions, Hist DB  │  │  - Isolated SQL Compiler    │
+    │  - 24-hr Expiry Session TTL  │  │  - Zero Direct DB Exposure   │
     └──────────────────────────────┘  └──────────────────────────────┘
 ```
 
@@ -51,88 +53,75 @@ Analyst.AI adopts a decoupled, secure asynchronous monorepo layout:
 
 ## 🛠️ Technology Stack
 
-* **Frontend**: React 19, TypeScript, Vite, React Router v7, GSAP (kinetic layout staggers), Recharts (interactive plotting), `@react-three/fiber` / `@react-three/drei` (3D rendering).
-* **Backend**: Node.js, Express, Nodemailer (automated SMTP delivery), Dotenv, Cors.
-* **Database**: SQLite (`sqlite3` driver with async Promise wrappers), SQLite MCP (Model Context Protocol) subprocess standard-I/O sandboxing.
+* **Frontend**: React 19, TypeScript, Vite, React Router v7, GSAP (staggers & custom kinetic outlines), Recharts, Three.js, `@react-three/fiber`, `@react-three/drei`.
+* **Backend**: Node.js, Express, Nodemailer, Dotenv, Cors.
+* **Database**: SQLite (`sqlite3` with Promise-based asynchronous wrappers), MCP stdio standard process sandboxing.
 
 ---
 
-## ⚙️ Environment Configuration (`.env`)
+## ⚙️ How to Configure the `.env` Credentials
 
-Create a `.env` file inside the root directory of your backend folder to configure your credentials:
+Create a `.env` file in your root backend folder:
 
 ```env
-# Server Port Configuration
+# Port
 PORT=5000
 
-# AI Models & Compiler Keys
+# LLM API Keys
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 GROQ_API_KEY=YOUR_GROQ_API_KEY
 GROQ_MODEL=llama-3.3-70b-versatile
 
-# Automatic SMTP Email Configuration (Gmail App Password)
+# Automatic SMTP Configuration (Your Gmail Account)
 SMTP_USER=analystai.verify@gmail.com
 SMTP_PASS=ciooglqikdfgmnwl
 
-# Supabase Production Configuration (If scaling)
+# Supabase Configurations
 NEXT_PUBLIC_SUPABASE_URL=https://nksnqymfkfjpdiapheyj.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Mg0rquwivEbyQoU27EOnqA_kZi60nai
 
-# Optional: Decoupled Microservice OTP Service URL
+# Optional: Microservice Proxy URL
 # OTP_SERVICE_URL=http://localhost:4000
 ```
 
 ---
 
-## 🚀 Installation & Local Development
+## 🚀 Running the Project Locally
 
-### 1. Prerequisite Installations
-Ensure you have **Node.js (v18+)** and **npm** installed on your system.
-
-### 2. Backend Orchestration Setup
-Navigate to the backend server directory, install dependencies, and launch the server:
+### 1. Backend API & SQLite Initializations
 ```bash
 cd backend
 npm install
 node server.js
 ```
-The server will boot on `http://localhost:5000` and automatically verify or create your persistent SQLite database tables (`audit_logs`, `users`, `otps`, `sessions`, `query_history`).
+The server starts on `http://localhost:5000` and automatically builds/verifies all required SQLite database tables (`audit_logs`, `users`, `otps`, `sessions`, `query_history`).
 
-### 3. Frontend Client Setup
-Open a separate terminal window, navigate to the frontend directory, install packages, and boot the Vite development server:
+### 2. Frontend React Client
 ```bash
 npm install
 npm run dev -- --port 5173
 ```
-Open `http://localhost:5173` in your browser to interact with the platform.
+Visit `http://localhost:5173` to run the application.
 
-### 4. Compiling the Production Bundle
-To compile and optimize the client application for cloud hosting:
+### 3. Build for Production
+To tree-shake and compile the app for hosting:
 ```bash
 npm run build
 ```
-This generates a highly tree-shaken, minified static package inside the `/dist` directory.
 
 ---
 
-## 🌐 Production Cloud Deployment (Netlify & Render)
+## 🌐 How to Deploy this Full-Stack Project
 
-To launch this full-stack project live:
+### 1. Frontend SPA Deployment (Netlify)
+1. Commit and push the project to GitHub.
+2. In Netlify, click **Import from Git** and choose this repository.
+3. **Build Settings**: Set Build Command to `npm run build` and Publish Directory to `dist`.
+4. **Environment Variables**: Add `VITE_API_URL` pointing to your hosted Express backend service.
+5. **React Router Redirect (Required)**: Create a file named `_redirects` in your `public/` directory containing `/* /index.html 200` to prevent page reload 404s.
 
-### 1. Frontend (Netlify Static Hosting)
-* Deploy the compiled `/dist` directory or connect your GitHub repository directly.
-* Set the Build Command to `npm run build` and the Publish Directory to `dist`.
-* **Important**: Create a `_redirects` file (no extension) inside your frontend **`public/`** folder containing `/* /index.html 200` to prevent React Router client-side reload 404s.
-* Add an Environment Variable `VITE_API_URL` pointing to your hosted Express backend.
-
-### 2. Backend (Render / Railway Web Services)
-* Connect your repository and select **Node Web Service** with start command `node backend/server.js`.
-* Attach a **Persistent Disk Volume** mounted at `/var/data` inside your Render dashboard settings, and ensure your SQLite path points to `/var/data/database.sqlite` to secure persistent data writes across container restarts.
-
----
-
-## 🔒 Security Compliance Summary
-
-* **OWASP Top 10 Compliant**: Strictly parameterized prepared statements completely mitigate SQL injection vectors.
-* **Single-Use OTP Tokens**: OTP codes are instantly purged from SQLite tables upon verification to prevent token reuse.
-* **Isolated MCP Pipeline**: Direct client-to-database connections are completely eliminated; queries are safely compiled and ran locally via a sandboxed MCP stdio interface.
+### 2. Backend Deployment (Render / Railway)
+1. Choose **Node Web Service** and hook your GitHub repository.
+2. Set start command to `node backend/server.js`.
+3. In the environment dashboard, add your `.env` variables.
+4. **Persistent SQLite storage (Crucial)**: Add a **Persistent Volume Disk** in the Render settings mounted at `/var/data`, and ensure your local database path is configured to read/write inside `/var/data` so that users, sessions, and histories are permanently saved across server restarts.
