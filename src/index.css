@@ -962,8 +962,11 @@ to {
 }
 @media (width<=768px) {
   .mobile-nav-panel {
-  padding:24px 20px
-}
+    padding:24px 20px
+  }
+  .header-nav .btn-secondary {
+    display: none !important;
+  }
 }
 @media (width>=769px) {
   .mobile-nav-panel {

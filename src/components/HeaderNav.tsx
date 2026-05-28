@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Database, Terminal, Sun, Moon, UploadCloud, Loader2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -8,6 +8,8 @@ const HeaderNav: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [globalUploading, setGlobalUploading] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('admin-auth-token'));
 
   useEffect(() => {
@@ -129,10 +131,30 @@ const HeaderNav: React.FC = () => {
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
-          <label className="git-link" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', background: 'transparent', padding: '6px' }} title="Connect Database">
+          <button 
+            type="button"
+            className="git-link" 
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', background: 'transparent', padding: '6px', border: '1px solid var(--border)' }} 
+            title="Connect Database"
+            onClick={() => {
+              if (!isLoggedIn) {
+                alert('Please sign in to upload database files.');
+                navigate('/login');
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
+          >
             {globalUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={18} />}
-            <input type="file" accept=".sqlite,.db,.json" style={{ display: 'none' }} onChange={handleGlobalUpload} disabled={globalUploading} />
-          </label>
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            accept=".sqlite,.db,.json" 
+            style={{ display: 'none' }} 
+            onChange={handleGlobalUpload} 
+            disabled={globalUploading} 
+          />
           <Link to="/contact" className="btn-secondary">
             <Terminal size={14} />
             <span>Request Demo</span>

@@ -49,6 +49,35 @@ const LoginPage: React.FC = () => {
       const data = await response.json();
       if (!response.ok || !data.success) {
         setError(data.error || 'Failed to request code.');
+      } else if (data.bypass && data.token) {
+        // Direct Bypass! Log in immediately
+        localStorage.setItem('admin-auth-token', data.token);
+        localStorage.setItem('admin-auth-email', data.email);
+        
+        setAuthenticating(true);
+        let curIdx = 0;
+        const logTimer = setInterval(() => {
+          if (curIdx < LOGIN_LOGS.length - 1) {
+            curIdx++;
+            setLoginLogIdx(curIdx);
+          } else {
+            clearInterval(logTimer);
+          }
+        }, 180);
+
+        let curPct = 0;
+        const pctTimer = setInterval(() => {
+          curPct += 5;
+          if (curPct >= 100) {
+            curPct = 100;
+            clearInterval(pctTimer);
+            setTimeout(() => {
+              window.dispatchEvent(new Event('db-status-changed'));
+              navigate('/admin');
+            }, 150);
+          }
+          setLoginProgress(curPct);
+        }, 40);
       } else {
         setStep(2);
         if (data.debugOtp) {

