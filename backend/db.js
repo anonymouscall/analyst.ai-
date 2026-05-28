@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +11,13 @@ let db = null;
 
 export function getDB() {
   if (db) return db;
+  
+  // Ensure the directory for the database file exists
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
   db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
       console.error('Error connecting to audit logs database:', err);
