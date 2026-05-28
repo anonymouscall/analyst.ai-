@@ -73,12 +73,11 @@ GROQ_API_KEY=YOUR_GROQ_API_KEY
 GROQ_MODEL=llama-3.3-70b-versatile
 
 # Automatic SMTP Configuration (Your Gmail Account)
-SMTP_USER=analystai.verify@gmail.com
-SMTP_PASS=ciooglqikdfgmnwl
-
+SMTP_USER=your.own@gmail.com
+SMTP_PASS=find in goole security settings
 # Supabase Configurations
-NEXT_PUBLIC_SUPABASE_URL=https://nksnqymfkfjpdiapheyj.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Mg0rquwivEbyQoU27EOnqA_kZi60nai
+NEXT_PUBLIC_SUPABASE_URL=https://****.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_***********_kZi60nai
 
 # Optional: Microservice Proxy URL
 # OTP_SERVICE_URL=http://localhost:4000
