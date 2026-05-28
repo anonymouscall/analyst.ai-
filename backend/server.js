@@ -31,6 +31,13 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const DATA_DIR = process.env.PERSISTENT_DATA_DIR || path.resolve(__dirname, '../mcp_server');
+
+// Ensure persistent data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -78,11 +85,11 @@ app.post('/api/ask', requireAdminAuth, async (req, res) => {
     return res.status(400).json({ error: 'Question parameter is required.' });
   }
 
-  const cacheKey = question.trim().toLowerCase();
+  const cacheKey = `${req.adminEmail.trim().toLowerCase()}::${question.trim().toLowerCase()}`;
   
   // 1. Check cache first
   if (queryCache.has(cacheKey)) {
-    console.log(`Cache HIT for question: "${question}"`);
+    console.log(`Cache HIT for question: "${question}" (User: ${req.adminEmail})`);
     const cachedResult = queryCache.get(cacheKey);
     
     // Log cached execution to database with 0ms latency
@@ -106,7 +113,7 @@ app.post('/api/ask', requireAdminAuth, async (req, res) => {
   const startTime = Date.now();
 
   try {
-    const result = await queryDatabase(question);
+    const result = await queryDatabase(question, req.adminEmail);
     const latency = Date.now() - startTime;
 
     if (result.success) {
@@ -338,7 +345,16 @@ app.post('/api/admin/logout', requireAdminAuth, async (req, res) => {
   const token = authHeader.split(' ')[1];
   try {
     await deleteSession(token);
-    console.log(`Session token invalidated on sign out.`);
+    
+    // Evict all user-specific cache records
+    const emailPrefix = `${req.adminEmail.trim().toLowerCase()}::`;
+    for (const key of queryCache.keys()) {
+      if (key.startsWith(emailPrefix)) {
+        queryCache.delete(key);
+      }
+    }
+    
+    console.log(`Session token invalidated on sign out and user cache purged for: ${req.adminEmail}`);
     res.json({ success: true, message: 'Signed out successfully.' });
   } catch (err) {
     console.error('Failed to terminate session:', err);
@@ -346,14 +362,9 @@ app.post('/api/admin/logout', requireAdminAuth, async (req, res) => {
   }
 });
 
-// 4. Retrieve Registered Users (Admin Console only)
+// 4. Retrieve Registered Users (Endpoint Disabled for Standard Clients)
 app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
-  try {
-    const users = await getAllUsers();
-    res.json({ success: true, users });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to retrieve registered user database logs.' });
-  }
+  return res.status(403).json({ success: false, error: 'Access denied. Registered user lists are restricted.' });
 });
 
 // 5. Retrieve Persistent Query History for active user
@@ -398,23 +409,31 @@ app.post('/api/admin/clear-logs', requireAdminAuth, async (req, res) => {
 
 // Clear memory cache (Admin only)
 app.post('/api/admin/clear-cache', requireAdminAuth, (req, res) => {
-  queryCache.clear();
-  console.log('Query result cache flushed by administrator.');
+  const emailPrefix = `${req.adminEmail.trim().toLowerCase()}::`;
+  let count = 0;
+  for (const key of queryCache.keys()) {
+    if (key.startsWith(emailPrefix)) {
+      queryCache.delete(key);
+      count++;
+    }
+  }
+  console.log(`Query result cache flushed for user ${req.adminEmail} (${count} entries).`);
   res.json({ success: true, message: 'Query cache flushed successfully.' });
 });
 
 // Disconnect and delete database configuration (Admin only)
 app.post('/api/admin/delete-db', requireAdminAuth, (req, res) => {
   try {
-    const configPath = path.resolve(__dirname, '../mcp_server/connection_config.json');
-    const uploadPath = path.resolve(__dirname, '../mcp_server/uploaded_database.sqlite');
+    const cleanEmail = req.adminEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+    const configPath = path.join(DATA_DIR, `connection_config_${cleanEmail}.json`);
+    const uploadPath = path.join(DATA_DIR, `uploaded_database_${cleanEmail}.sqlite`);
     
     try {
       if (fs.existsSync(configPath)) {
         fs.unlinkSync(configPath);
       }
     } catch (e) {
-      console.error('Failed to delete connection_config.json:', e);
+      console.error(`Failed to delete connection_config_${cleanEmail}.json:`, e);
     }
     
     try {
@@ -422,11 +441,18 @@ app.post('/api/admin/delete-db', requireAdminAuth, (req, res) => {
         fs.unlinkSync(uploadPath);
       }
     } catch (e) {
-      console.warn('Failed to delete uploaded_database.sqlite (might be locked by MCP server):', e);
+      console.warn(`Failed to delete uploaded_database_${cleanEmail}.sqlite:`, e);
     }
     
-    queryCache.clear();
-    console.log('Active database disconnected and configuration deleted.');
+    // Evict this user's cache keys
+    const emailPrefix = `${req.adminEmail.trim().toLowerCase()}::`;
+    for (const key of queryCache.keys()) {
+      if (key.startsWith(emailPrefix)) {
+        queryCache.delete(key);
+      }
+    }
+    
+    console.log(`Active database disconnected and configuration deleted for user ${req.adminEmail}.`);
     res.json({ success: true, message: 'Database disconnected and configuration deleted successfully.' });
   } catch (err) {
     console.error('Failed to disconnect database:', err);
@@ -436,14 +462,15 @@ app.post('/api/admin/delete-db', requireAdminAuth, (req, res) => {
 
 // Get database connection config
 app.get('/api/admin/config', requireAdminAuth, (req, res) => {
-  const configPath = path.resolve(__dirname, '../mcp_server/connection_config.json');
+  const cleanEmail = req.adminEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+  const configPath = path.join(DATA_DIR, `connection_config_${cleanEmail}.json`);
   let config = null;
 
   if (fs.existsSync(configPath)) {
     try {
       config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     } catch (e) {
-      console.error('Error reading connection config:', e);
+      console.error(`Error reading connection config for ${req.adminEmail}:`, e);
     }
   }
 
@@ -459,10 +486,11 @@ app.post('/api/admin/config', requireAdminAuth, (req, res) => {
   }
 
   try {
-    const configPath = path.resolve(__dirname, '../mcp_server/connection_config.json');
+    const cleanEmail = req.adminEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+    const configPath = path.join(DATA_DIR, `connection_config_${cleanEmail}.json`);
     const config = {
       type,
-      sqlitePath: sqlitePath || 'database.sqlite',
+      sqlitePath: sqlitePath || `database_${cleanEmail}.sqlite`,
       host: host || '',
       port: port || '',
       database: database || '',
@@ -470,7 +498,7 @@ app.post('/api/admin/config', requireAdminAuth, (req, res) => {
     };
 
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    console.log(`Database connection profile updated to: ${type}`);
+    console.log(`Database connection profile updated to: ${type} for ${req.adminEmail}`);
     res.json({ success: true, message: `Database profile connected to ${type} successfully.` });
   } catch (err) {
     console.error('Failed to save database config:', err);
@@ -612,8 +640,9 @@ app.post('/api/admin/upload-db', requireAdminAuth, async (req, res) => {
   const isJson = fileName.toLowerCase().endsWith('.json');
 
   try {
+    const cleanEmail = req.adminEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
     const buffer = Buffer.from(fileContent, 'base64');
-    const uploadPath = path.resolve(__dirname, '../mcp_server/uploaded_database.sqlite');
+    const uploadPath = path.join(DATA_DIR, `uploaded_database_${cleanEmail}.sqlite`);
     
     if (isJson) {
       const jsonText = buffer.toString('utf8');
@@ -632,10 +661,10 @@ app.post('/api/admin/upload-db', requireAdminAuth, async (req, res) => {
     }
     
     // Save configuration to point to the uploaded DB
-    const configPath = path.resolve(__dirname, '../mcp_server/connection_config.json');
+    const configPath = path.join(DATA_DIR, `connection_config_${cleanEmail}.json`);
     const config = {
       type: 'sqlite',
-      sqlitePath: 'uploaded_database.sqlite',
+      sqlitePath: `uploaded_database_${cleanEmail}.sqlite`,
       host: '',
       port: '',
       database: fileName,
@@ -643,7 +672,7 @@ app.post('/api/admin/upload-db', requireAdminAuth, async (req, res) => {
     };
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-    console.log(`Uploaded database connected: ${fileName}`);
+    console.log(`Uploaded database connected: ${fileName} for ${req.adminEmail}`);
     res.json({ success: true, message: `Database ${fileName} uploaded and connected successfully.` });
   } catch (err) {
     console.error('Failed to save uploaded database:', err);
@@ -715,18 +744,20 @@ app.get('/api/db-status', async (req, res) => {
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
   
   let isLoggedIn = false;
+  let userEmail = null;
   if (token) {
     try {
       const session = await getSession(token);
       if (session) {
         isLoggedIn = true;
+        userEmail = session.email;
       }
     } catch (err) {
       console.error('Failed to validate session in db-status:', err);
     }
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn || !userEmail) {
     return res.json({
       success: true,
       connected: false,
@@ -736,11 +767,12 @@ app.get('/api/db-status', async (req, res) => {
     });
   }
 
-  const configPath = path.resolve(__dirname, '../mcp_server/connection_config.json');
+  const cleanEmail = userEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+  const configPath = path.join(DATA_DIR, `connection_config_${cleanEmail}.json`);
   let config = {
     type: 'sqlite',
-    sqlitePath: 'database.sqlite',
-    database: 'database.sqlite'
+    sqlitePath: `database_${cleanEmail}.sqlite`,
+    database: `database_${cleanEmail}.sqlite`
   };
 
   let exists = false;
@@ -749,14 +781,14 @@ app.get('/api/db-status', async (req, res) => {
       config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       exists = true;
     } catch (e) {
-      console.error('Error reading connection config:', e);
+      console.error(`Error reading connection config for ${userEmail}:`, e);
     }
   }
 
   let summary = { tables: [], totalRows: 0, totalTables: 0 };
   if (exists && config.type === 'sqlite') {
     try {
-      const dbPath = path.resolve(__dirname, '../mcp_server', config.sqlitePath);
+      const dbPath = path.resolve(DATA_DIR, config.sqlitePath);
       summary = await getSqliteSummary(dbPath);
     } catch (err) {
       console.error('Error fetching database summary:', err);

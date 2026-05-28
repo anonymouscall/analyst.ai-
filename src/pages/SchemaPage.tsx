@@ -11,6 +11,8 @@ import {
   Layers,
 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 interface TableInfo {
   name: string;
   rows: number;
@@ -134,7 +136,7 @@ const SchemaPage: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('admin-auth-token');
-      const response = await fetch('http://localhost:5000/api/db-status', {
+      const response = await fetch(`${API_BASE_URL}/api/db-status`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (response.ok) {

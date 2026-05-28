@@ -23,37 +23,42 @@ export function getDB() {
 export function initAuditLogs() {
   const connection = getDB();
   return new Promise((resolve, reject) => {
-    connection.run(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question TEXT,
-        sql_query TEXT,
-        status TEXT,
-        results_count INTEGER,
-        latency_ms REAL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) {
-        console.error('Failed to create audit_logs table:', err);
-        reject(err);
-      } else {
-        console.log('Database audit_logs table verified/created.');
-        resolve();
-      }
+    connection.serialize(() => {
+      connection.run(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT,
+          question TEXT,
+          sql_query TEXT,
+          status TEXT,
+          results_count INTEGER,
+          latency_ms REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Failed to create audit_logs table:', err);
+          reject(err);
+        } else {
+          // Gracefully add email column in case table already exists from previous runs without it
+          connection.run("ALTER TABLE audit_logs ADD COLUMN email TEXT", () => {
+            resolve();
+          });
+        }
+      });
     });
   });
 }
 
-export function logQuery(question, sql, status, resultsCount, latency) {
+export function logQuery(email, question, sql, status, resultsCount, latency) {
   const connection = getDB();
   return new Promise((resolve, reject) => {
     const stmt = connection.prepare(`
-      INSERT INTO audit_logs (question, sql_query, status, results_count, latency_ms)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO audit_logs (email, question, sql_query, status, results_count, latency_ms)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     
-    stmt.run(question, sql, status, resultsCount, latency, function(err) {
+    stmt.run(email, question, sql, status, resultsCount, latency, function(err) {
       if (err) {
         console.error('Failed to write audit log:', err);
         reject(err);
@@ -65,10 +70,10 @@ export function logQuery(question, sql, status, resultsCount, latency) {
   });
 }
 
-export function getAuditLogs() {
+export function getAuditLogs(email) {
   const connection = getDB();
   return new Promise((resolve, reject) => {
-    connection.all('SELECT * FROM audit_logs ORDER BY created_at DESC', [], (err, rows) => {
+    connection.all('SELECT * FROM audit_logs WHERE email = ? ORDER BY created_at DESC', [email], (err, rows) => {
       if (err) {
         console.error('Failed to retrieve audit logs:', err);
         reject(err);
@@ -79,10 +84,10 @@ export function getAuditLogs() {
   });
 }
 
-export function clearAuditLogs() {
+export function clearAuditLogs(email) {
   const connection = getDB();
   return new Promise((resolve, reject) => {
-    connection.run('DELETE FROM audit_logs', [], (err) => {
+    connection.run('DELETE FROM audit_logs WHERE email = ?', [email], (err) => {
       if (err) {
         console.error('Failed to clear audit logs:', err);
         reject(err);

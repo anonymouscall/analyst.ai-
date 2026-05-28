@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Database, Terminal, Sun, Moon, UploadCloud, Loader2 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const HeaderNav: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [globalUploading, setGlobalUploading] = useState(false);
@@ -47,7 +49,7 @@ const HeaderNav: React.FC = () => {
       if (!base64) return;
       try {
         const token = localStorage.getItem('admin-auth-token') || 'mock-admin-token-jwt';
-        const res = await fetch('http://localhost:5000/api/admin/upload-db', {
+        const res = await fetch(`${API_BASE_URL}/api/admin/upload-db`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ fileName: file.name, fileContent: base64 }),

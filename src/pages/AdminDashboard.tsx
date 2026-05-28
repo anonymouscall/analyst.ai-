@@ -12,23 +12,17 @@ interface AuditLog {
   created_at: string;
 }
 
-interface User {
-  id: number;
-  email: string;
-  created_at: string;
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const AdminDashboard: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usersLoading, setUsersLoading] = useState(false);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({ total: 0, cacheHits: 0, avgLatency: 0 });
   const navigate = useNavigate();
 
   // Tabs state
-  const [activeTab, setActiveTab] = useState<'logs' | 'users' | 'connection'>('logs');
+  const [activeTab, setActiveTab] = useState<'logs' | 'connection'>('logs');
   
   // Config state
   const [config, setConfig] = useState({ type: 'sqlite', sqlitePath: 'database.sqlite', host: '', port: '', database: 'database.sqlite', username: '' });
@@ -46,7 +40,7 @@ const AdminDashboard: React.FC = () => {
     const token = localStorage.getItem('admin-auth-token');
     if (token) {
       try {
-        await fetch('http://localhost:5000/api/admin/logout', {
+        await fetch(`${API_BASE_URL}/api/admin/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -60,7 +54,7 @@ const AdminDashboard: React.FC = () => {
     localStorage.removeItem('admin-auth-token');
     localStorage.removeItem('admin-auth-email');
     window.dispatchEvent(new Event('db-status-changed'));
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   const handleDisconnectDb = async () => {
@@ -72,7 +66,7 @@ const AdminDashboard: React.FC = () => {
         navigate('/login');
         return;
       }
-      const response = await fetch('http://localhost:5000/api/admin/delete-db', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/delete-db`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,7 +97,7 @@ const AdminDashboard: React.FC = () => {
       return;
     }
     try {
-      const response = await fetch('http://localhost:5000/api/admin/logs', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/logs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -124,32 +118,13 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    setUsersLoading(true);
-    const token = localStorage.getItem('admin-auth-token');
-    if (!token) return;
-    try {
-      const response = await fetch('http://localhost:5000/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const d = await response.json();
-      if (response.ok && d.success) {
-        setUsers(d.users);
-      } else if (response.status === 401) {
-        handleSignOut();
-      }
-    } catch (err) {
-      console.error('Error fetching registered users:', err);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
+
 
   const fetchConfig = async () => {
     const token = localStorage.getItem('admin-auth-token');
     if (!token) return;
     try {
-      const response = await fetch('http://localhost:5000/api/admin/config', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/config`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const d = await response.json();
@@ -194,7 +169,7 @@ const AdminDashboard: React.FC = () => {
     setSaving(true);
     const token = localStorage.getItem('admin-auth-token');
     try {
-      const response = await fetch('http://localhost:5000/api/admin/config', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -235,7 +210,7 @@ const AdminDashboard: React.FC = () => {
       if (!base64) return;
       try {
         const token = localStorage.getItem('admin-auth-token');
-        const res = await fetch('http://localhost:5000/api/admin/upload-db', {
+        const res = await fetch(`${API_BASE_URL}/api/admin/upload-db`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -262,7 +237,6 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     fetchLogs();
     fetchConfig();
-    fetchUsers();
   }, []);
 
   return (
@@ -279,7 +253,7 @@ const AdminDashboard: React.FC = () => {
             onClick={async () => {
               const token = localStorage.getItem('admin-auth-token');
               try {
-                const response = await fetch('http://localhost:5000/api/admin/clear-cache', {
+                const response = await fetch(`${API_BASE_URL}/api/admin/clear-cache`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -305,7 +279,7 @@ const AdminDashboard: React.FC = () => {
               if (!window.confirm('Are you sure you want to permanently delete all SQL execution audit logs?')) return;
               const token = localStorage.getItem('admin-auth-token');
               try {
-                const response = await fetch('http://localhost:5000/api/admin/clear-logs', {
+                const response = await fetch(`${API_BASE_URL}/api/admin/clear-logs`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -402,9 +376,6 @@ const AdminDashboard: React.FC = () => {
         <button className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
           Security Audit Logs ({logs.length})
         </button>
-        <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-          Registered Users ({users.length})
-        </button>
         <button className={`tab-btn ${activeTab === 'connection' ? 'active' : ''}`} onClick={() => setActiveTab('connection')}>
           Database Connection Manager
         </button>
@@ -469,53 +440,6 @@ const AdminDashboard: React.FC = () => {
                           }`}
                         >
                           {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <div className="admin-logs-panel glass-panel animate-fade-in">
-          <div className="panel-header">
-            <h4>Registered Database Users</h4>
-            <button className="btn-secondary btn-sm" onClick={fetchUsers} disabled={usersLoading}>
-              Refresh Users
-            </button>
-          </div>
-          {usersLoading ? (
-            <div className="panel-loading">
-              <div className="spinner" />
-              <span>Fetching registered users...</span>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="panel-empty">
-              <span>No registered users found in the database.</span>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="logs-table">
-                <thead>
-                  <tr>
-                    <th>User ID</th>
-                    <th>Email Address</th>
-                    <th>Sign Up Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => (
-                    <tr key={user.id}>
-                      <td className="col-time" style={{ fontFamily: 'var(--font-mono)' }}>#{user.id}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{user.email}</td>
-                      <td className="col-time">
-                        {new Date(user.created_at).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}
-                        <span className="date-sub">
-                          {new Date(user.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </td>
                     </tr>

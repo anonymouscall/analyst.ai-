@@ -87,14 +87,14 @@ async function queryGroq(userQuestion, systemPrompt) {
 }
 
 // Main query handler
-export async function queryDatabase(userQuestion) {
+export async function queryDatabase(userQuestion, userEmail = '') {
   try {
     const client = await getMCPClient();
 
     // 1. RAG: Retrieve database schema details using MCP tools
     const listResponse = await client.callTool({
       name: 'list_tables',
-      arguments: {},
+      arguments: { userEmail },
     });
 
     const tablesText = listResponse.content[0].text;
@@ -107,7 +107,7 @@ export async function queryDatabase(userQuestion) {
       if (table.trim()) {
         const descResponse = await client.callTool({
           name: 'describe_table',
-          arguments: { tableName: table.trim() },
+          arguments: { tableName: table.trim(), userEmail },
         });
         schemaContext += descResponse.content[0].text + '\n\n';
       }
@@ -203,7 +203,7 @@ export async function queryDatabase(userQuestion) {
     if (isValidSql) {
       const queryResponse = await client.callTool({
         name: 'execute_query',
-        arguments: { sql: parsedResponse.sql },
+        arguments: { sql: parsedResponse.sql, userEmail },
       });
 
       if (queryResponse.isError) {

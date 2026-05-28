@@ -32,6 +32,8 @@ interface QueryContextType {
 
 const QueryContext = createContext<QueryContextType | undefined>(undefined);
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const generateId = () => `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 export const QueryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -79,7 +81,7 @@ export const QueryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         const token = localStorage.getItem('admin-auth-token') || 'mock-admin-token-jwt';
 
-        const uploadRes = await fetch('http://localhost:5000/api/admin/upload-db', {
+        const uploadRes = await fetch(`${API_BASE_URL}/api/admin/upload-db`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -158,7 +160,7 @@ export const QueryProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const token = localStorage.getItem('admin-auth-token') || 'mock-admin-token-jwt';
-      const response = await fetch('http://localhost:5000/api/ask', {
+      const response = await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

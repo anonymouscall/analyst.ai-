@@ -16,6 +16,8 @@ interface HistoryItem {
   created_at: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const CollapsibleResults: React.FC<{ chartConfig: any; data: any }> = ({ chartConfig, data }) => {
   const [open, setOpen] = useState(false);
   const [copiedData, setCopiedData] = useState(false);
@@ -187,7 +189,7 @@ const HistoryPage: React.FC = () => {
     const token = localStorage.getItem('admin-auth-token');
     if (!token) return;
     try {
-      const response = await fetch('http://localhost:5000/api/admin/history', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -208,7 +210,7 @@ const HistoryPage: React.FC = () => {
     const token = localStorage.getItem('admin-auth-token');
     if (!token) return;
     try {
-      const response = await fetch('http://localhost:5000/api/admin/clear-history', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/clear-history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

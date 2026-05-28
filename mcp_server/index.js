@@ -4,48 +4,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let currentDb = null;
-let currentDbPath = null;
-
-function getDBConnection() {
-  const configPath = path.join(__dirname, 'connection_config.json');
-  let targetDbPath = path.join(__dirname, 'database.sqlite');
-
-  if (fs.existsSync(configPath)) {
-    try {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (config.type === 'sqlite' && config.sqlitePath) {
-        targetDbPath = path.resolve(__dirname, config.sqlitePath);
-      }
-    } catch (e) {
-      console.error('Error reading connection config:', e);
-    }
-  }
-
-  if (currentDb && currentDbPath === targetDbPath) {
-    return currentDb;
-  }
-
-  if (currentDb) {
-    console.error(`Closing old database connection to ${currentDbPath}`);
-    try {
-      currentDb.close();
-    } catch (err) {
-      console.error('Error closing database:', err);
-    }
-  }
-
-  console.error(`Opening new database connection to: ${targetDbPath}`);
-  currentDb = new sqlite3.Database(targetDbPath);
-  currentDbPath = targetDbPath;
-  return currentDb;
-}
+const DATA_DIR = process.env.PERSISTENT_DATA_DIR || __dirname;
 
 // Define the server
 const server = new Server(
@@ -67,7 +31,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'list_tables',
         description: 'List all available tables in the enterprise database. Used to discover table schemas.',
-        inputSchema: { type: 'object', properties: {} },
+        inputSchema: {
+          type: 'object',
+          properties: {
+            userEmail: { type: 'string', description: 'The unique email of the logged-in user.' },
+          },
+        },
       },
       {
         name: 'describe_table',
@@ -76,6 +45,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: 'object',
           properties: {
             tableName: { type: 'string', description: 'The name of the table to describe.' },
+            userEmail: { type: 'string', description: 'The unique email of the logged-in user.' },
           },
           required: ['tableName'],
         },
@@ -87,6 +57,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: 'object',
           properties: {
             sql: { type: 'string', description: 'The SQL SELECT query to execute.' },
+            userEmail: { type: 'string', description: 'The unique email of the logged-in user.' },
           },
           required: ['sql'],
         },
@@ -95,13 +66,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-// Helper database functions wrapped in Promises
-const dbAll = (sql, params = []) => {
+// Helper database functions wrapped in Promises with self-closing connection logic to avoid Windows EBUSY file locks
+const dbAll = (sql, params = [], userEmail) => {
   return new Promise((resolve, reject) => {
-    const activeDb = getDBConnection();
-    activeDb.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
+    const cleanEmail = userEmail ? userEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_') : 'global';
+    const configPath = path.join(DATA_DIR, `connection_config_${cleanEmail}.json`);
+    let targetDbPath = path.join(DATA_DIR, `database_${cleanEmail}.sqlite`);
+
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.type === 'sqlite' && config.sqlitePath) {
+          targetDbPath = path.resolve(DATA_DIR, config.sqlitePath);
+        }
+      } catch (e) {
+        console.error('Error reading connection config:', e);
+      }
+    }
+
+    const tempDb = new sqlite3.Database(targetDbPath, (openErr) => {
+      if (openErr) return reject(openErr);
+      
+      tempDb.all(sql, params, (err, rows) => {
+        tempDb.close((closeErr) => {
+          if (closeErr) console.error('Error closing temp database connection:', closeErr);
+          
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
     });
   });
 };
@@ -109,11 +102,12 @@ const dbAll = (sql, params = []) => {
 // Handle tool execution requests
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const userEmail = args.userEmail || '';
 
   try {
     switch (name) {
       case 'list_tables': {
-        const rows = await dbAll("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        const rows = await dbAll("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", [], userEmail);
         const tableNames = rows.map(r => r.name);
         return {
           content: [
@@ -131,7 +125,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
           throw new Error('Invalid table name format');
         }
-        const columns = await dbAll(`PRAGMA table_info(${tableName})`);
+        const columns = await dbAll(`PRAGMA table_info(${tableName})`, [], userEmail);
         const schema = columns.map(c => `- ${c.name} (${c.type})${c.pk ? ' [PRIMARY KEY]' : ''}`).join('\n');
         return {
           content: [
@@ -145,8 +139,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'execute_query': {
         const { sql } = args;
-        console.error(`Executing Query: ${sql}`); // Log to stderr since stdout is used for MCP JSON-RPC
-        const results = await dbAll(sql);
+        console.error(`Executing Query for ${userEmail}: ${sql}`); // Log to stderr since stdout is used for MCP JSON-RPC
+        const results = await dbAll(sql, [], userEmail);
         return {
           content: [
             {
