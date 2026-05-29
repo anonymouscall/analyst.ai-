@@ -562,7 +562,69 @@ function convertJsonToSqlite(jsonData, dbFilePath) {
   });
 }
 
-// Upload SQLite database file or JSON dataset
+// Helper to parse and execute a raw .sql file onto an isolated SQLite database
+function convertSqlToSqlite(sqlText, dbFilePath) {
+  return new Promise((resolve, reject) => {
+    // Delete existing file if any to start fresh
+    if (fs.existsSync(dbFilePath)) {
+      try {
+        fs.unlinkSync(dbFilePath);
+      } catch (err) {
+        console.error('Failed to clear old uploaded db:', err);
+      }
+    }
+
+    const dbConn = new sqlite3.Database(dbFilePath, (err) => {
+      if (err) return reject(err);
+    });
+
+    // Split SQL by semicolon after stripping comments
+    const statements = sqlText
+      .replace(/\/\*[\s\S]*?\*\//g, '') // remove multi-line comments
+      .split('\n')
+      .map(line => line.replace(/--.*$/, '')) // remove single-line comments
+      .join('\n')
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    dbConn.serialize(() => {
+      let executionErrors = [];
+      let pendingCount = statements.length;
+
+      if (pendingCount === 0) {
+        dbConn.close((closeErr) => {
+          if (closeErr) reject(closeErr);
+          else resolve();
+        });
+        return;
+      }
+
+      for (const stmt of statements) {
+        dbConn.run(stmt, (err) => {
+          pendingCount--;
+          if (err) {
+            console.error(`[SQL Upload Error] Failed to execute statement: "${stmt.slice(0, 100)}..." -> ${err.message}`);
+            executionErrors.push(err.message);
+          }
+          if (pendingCount === 0) {
+            dbConn.close((closeErr) => {
+              if (closeErr) {
+                reject(closeErr);
+              } else if (executionErrors.length > 0 && executionErrors.length === statements.length) {
+                reject(new Error(`Failed to parse SQL file. Example error: ${executionErrors[0]}`));
+              } else {
+                resolve();
+              }
+            });
+          }
+        });
+      }
+    });
+  });
+}
+
+// Upload SQLite database file, JSON dataset, or raw SQL script
 app.post('/api/admin/upload-db', requireAdminAuth, async (req, res) => {
   const { fileName, fileContent } = req.body; // fileContent is base64 string
   if (!fileName || !fileContent) {
@@ -570,6 +632,7 @@ app.post('/api/admin/upload-db', requireAdminAuth, async (req, res) => {
   }
 
   const isJson = fileName.toLowerCase().endsWith('.json');
+  const isSql = fileName.toLowerCase().endsWith('.sql');
 
   try {
     const cleanEmail = req.adminEmail.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
@@ -587,6 +650,11 @@ app.post('/api/admin/upload-db', requireAdminAuth, async (req, res) => {
       
       // Parse list and convert into SQLite tables dynamically
       await convertJsonToSqlite(jsonData, uploadPath);
+    } else if (isSql) {
+      const sqlText = buffer.toString('utf8');
+      
+      // Parse SQL statements and run them on new SQLite database file
+      await convertSqlToSqlite(sqlText, uploadPath);
     } else {
       // Direct SQLite database write
       fs.writeFileSync(uploadPath, buffer);

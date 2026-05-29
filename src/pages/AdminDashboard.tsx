@@ -574,7 +574,7 @@ const AdminDashboard: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <input
                     type="file"
-                    accept=".sqlite,.db"
+                    accept=".sqlite,.db,.json,.sql"
                     onChange={handleFileUpload}
                     id="db-upload"
                     style={{ display: 'none' }}
@@ -582,7 +582,7 @@ const AdminDashboard: React.FC = () => {
                   />
                   <label htmlFor="db-upload" className="btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     <Database size={13} />
-                    {uploading ? 'Processing File...' : 'Choose SQLite Database'}
+                    {uploading ? 'Processing File...' : 'Choose Database File (.sqlite, .db, .json, .sql)'}
                   </label>
                 </div>
               </div>

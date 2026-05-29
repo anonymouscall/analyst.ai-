@@ -39,8 +39,8 @@ const HeaderNav: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'sqlite' && ext !== 'db' && ext !== 'json') {
-      alert('Only .sqlite, .db, and .json files are supported.');
+    if (ext !== 'sqlite' && ext !== 'db' && ext !== 'json' && ext !== 'sql') {
+      alert('Only .sqlite, .db, .json, and .sql files are supported.');
       return;
     }
 
@@ -150,7 +150,7 @@ const HeaderNav: React.FC = () => {
           <input 
             type="file" 
             ref={fileInputRef}
-            accept=".sqlite,.db,.json" 
+            accept=".sqlite,.db,.json,.sql" 
             style={{ display: 'none' }} 
             onChange={handleGlobalUpload} 
             disabled={globalUploading} 

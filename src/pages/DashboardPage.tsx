@@ -4,6 +4,8 @@ import ChatMessage from '../components/ChatMessage';
 import { useQuery } from '../context/QueryContext';
 import { Database, ArrowRight, RefreshCw, Settings, Trash2, MessageSquare } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const DashboardPage: React.FC = () => {
   const {
     question,
@@ -48,7 +50,7 @@ const DashboardPage: React.FC = () => {
   const fetchDbStatus = async () => {
     try {
       const token = localStorage.getItem('admin-auth-token');
-      const response = await fetch('http://localhost:5000/api/db-status', {
+      const response = await fetch(`${API_BASE_URL}/api/db-status`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       let d;
@@ -87,8 +89,8 @@ const DashboardPage: React.FC = () => {
 
   const handleFileProcess = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'sqlite' && ext !== 'db' && ext !== 'json') {
-      alert('Only .sqlite, .db, and .json files are supported.');
+    if (ext !== 'sqlite' && ext !== 'db' && ext !== 'json' && ext !== 'sql') {
+      alert('Only .sqlite, .db, .json, and .sql files are supported.');
       return;
     }
 
@@ -100,7 +102,7 @@ const DashboardPage: React.FC = () => {
       if (!base64) return;
       try {
         const token = localStorage.getItem('admin-auth-token') || 'mock-admin-token-jwt';
-        const res = await fetch('http://localhost:5000/api/admin/upload-db', {
+        const res = await fetch(`${API_BASE_URL}/api/admin/upload-db`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -212,7 +214,7 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <input
                   type="file"
-                  accept=".sqlite,.db,.json"
+                  accept=".sqlite,.db,.json,.sql"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileProcess(file);
