@@ -1310,8 +1310,8 @@ to {
 .chat-layout {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 72px);
-  max-height: calc(100vh - 72px);
+  height: calc(100dvh - 80px);
+  max-height: calc(100dvh - 80px);
   overflow: hidden;
 }
 
@@ -2046,6 +2046,81 @@ to {
   }
   100% {
     background-position: 200% 50%;
+  }
+}
+
+/* ── Mobile Responsive Chat Interface ── */
+@media (max-width: 768px) {
+  .chat-layout {
+    height: calc(100dvh - 80px) !important;
+    max-height: calc(100dvh - 80px) !important;
+  }
+  .chat-topbar {
+    padding: 10px 16px !important;
+  }
+  .chat-topbar__left h3 {
+    font-size: 0.95rem !important;
+  }
+  .chat-area {
+    padding: 16px 14px 10px !important;
+    gap: 12px !important;
+  }
+  .chat-welcome {
+    padding: 24px 12px 16px !important;
+    gap: 8px !important;
+  }
+  .chat-welcome h2 {
+    font-size: 1.3rem !important;
+  }
+  .chat-welcome__sub {
+    font-size: 0.8rem !important;
+    line-height: 1.45 !important;
+  }
+  .chat-schema-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-top: 16px !important;
+  }
+  .chat-schema-card {
+    padding: 12px !important;
+  }
+  .chat-suggestions {
+    margin-top: 16px !important;
+    gap: 8px !important;
+  }
+  .chat-suggestions__list {
+    gap: 6px !important;
+  }
+  .chat-suggestion-chip {
+    padding: 6px 12px !important;
+    font-size: 0.72rem !important;
+    max-width: 100% !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chat-msg {
+    max-width: 95% !important;
+  }
+  .chat-msg__bubble {
+    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    border-radius: 12px !important;
+  }
+  .chat-input-bar {
+    padding: 8px 12px 14px !important;
+  }
+  .chat-input-form {
+    padding: 4px 4px 4px 12px !important;
+    border-radius: 10px !important;
+  }
+  .chat-input {
+    font-size: 0.82rem !important;
+    padding: 6px 0 !important;
+  }
+  .chat-send-btn {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
   }
 }
 
